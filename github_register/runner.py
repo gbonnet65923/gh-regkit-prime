@@ -823,6 +823,7 @@ def _open_signup(page, log, attempts: int = 3, stop=None, headless: bool = False
     _PROXY_DEAD_MARKERS = (
         "NS_ERROR_PROXY", "ERR_PROXY", "PROXY_CONNECTION", "ProxyError",
         "SEC_ERROR_UNKNOWN_ISSUER", "ERR_CERT", "SSL_ERROR",
+        "NS_ERROR_NET_RESET", "NET_RESET", "CONNECTION_RESET",
         "proxy", "NS_ERROR_NET_TIMEOUT", "<unknown error>",
         "Page.goto: Timeout", "navigation timeout",
     )
