@@ -812,6 +812,7 @@ def _open_signup(page, log, attempts: int = 3, stop=None, headless: bool = False
     proxy_fails = 0
     _PROXY_DEAD_MARKERS = (
         "NS_ERROR_PROXY", "ERR_PROXY", "PROXY_CONNECTION", "ProxyError",
+        "SEC_ERROR_UNKNOWN_ISSUER", "ERR_CERT", "SSL_ERROR",
         "proxy", "NS_ERROR_NET_TIMEOUT", "<unknown error>",
         "Page.goto: Timeout", "navigation timeout",
     )
@@ -2898,6 +2899,7 @@ def register_one(
             "402 payment required", "tunnel connection failed", "proxyerror",
             "failed to get ip address", "ns_error_proxy", "err_proxy",
             "proxy connection failed", "proxy_connect", "unable to connect to proxy",
+            "sec_error_unknown_issuer", "err_cert", "ssl_error", "426 upgrade required",
         )):
             log(f"[!] proxy dead at launch — disabling via rotator: {str(exc)[:100]}")
             _disable_blocked_proxy(log)
