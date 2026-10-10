@@ -323,6 +323,9 @@ class ConfigBody(BaseModel):
     imap_host: Optional[str] = None
     imap_port: Optional[int] = None
     imap_alias_domain: Optional[str] = None
+    temptf_providers: Optional[str] = None
+    temptf_dot: Optional[bool] = None
+    temptf_plus: Optional[bool] = None
     register_count: Optional[int] = None
     proxy: Optional[str] = None
     proxy_file: Optional[str] = None

@@ -57,9 +57,9 @@ Works with OpenRouter, Aurora, one-api/new-api, LiteLLM — anything accepting
 # GitHub Register (upstream docs)
 
 A GitHub account registration toolkit that uses Camoufox for browser automation
-and mail.cx (free, default), [Litensi](https://litensi.id) (paid), or your own
-Gmail / Outlook mailbox (IMAP +alias, unlimited addresses) for verification
-mailboxes. It can be run from the CLI, through a local web
+and mail.cx (free, default), [Litensi](https://litensi.id) (paid), [temp.tf](https://temp.tf)
+(free gmail/outlook/hotmail alias pool, no keys), or your own Gmail / Outlook
+mailbox (IMAP +alias, unlimited addresses) for verification mailboxes. It can be run from the CLI, through a local web
 console, or as a Docker service behind an nginx reverse proxy.
 
 > Use this only for accounts and workflows you are authorized to manage.
@@ -69,7 +69,8 @@ console, or as a Docker service behind an nginx reverse proxy.
 ## Features
 
 - Creates a mailbox, password, and username for GitHub signup. Mail providers:
-  mail.cx (free), Litensi (paid), Gmail or Outlook via IMAP — one real mailbox,
+  mail.cx (free), temp.tf (free, shared gmail/outlook/hotmail alias pool, no
+  keys needed), Litensi (paid), Gmail or Outlook via IMAP — one real mailbox,
   unlimited `base+random@domain` aliases, App Password auth.
 - Verifies the eight-digit GitHub launch code from the mailbox.
 - Logs in again when a newly verified account is redirected to `/login`.
@@ -164,6 +165,9 @@ Set your local values in `config.json`. This file must never be committed.
   "imap_host": "",
   "imap_port": 993,
   "imap_alias_domain": "",
+  "temptf_providers": "gmail.com,outlook.com,hotmail.com,high.edu.pl",
+  "temptf_dot": true,
+  "temptf_plus": true,
   "register_count": 1,
   "proxy": "",
   "proxy_file": "",

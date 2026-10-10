@@ -9,7 +9,12 @@ from pathlib import Path
 class Config:
     # Mail provider: "mailcx" (free, default), "litensi" (paid, reliable),
     # "gmail" / "outlook" — your own mailbox via IMAP with +alias addresses
-    mail_provider: str = "mailcx"  # "mailcx" | "litensi" | "gmail" | "outlook"
+    # "temptf" — temp.tf free pool (gmail/outlook/hotmail/high.edu.pl aliases)
+    mail_provider: str = "mailcx"  # "mailcx" | "litensi" | "gmail" | "outlook" | "temptf"
+    # temp.tf providers (comma list; pools can be empty -> rotated)
+    temptf_providers: str = "gmail.com,outlook.com,hotmail.com,high.edu.pl"
+    temptf_dot: bool = True   # gmail dot-aliases
+    temptf_plus: bool = True  # +tag aliases
     # IMAP (gmail/outlook providers): App Password recommended, IMAP enabled
     imap_user: str = ""          # e.g. mybox@gmail.com or mybox@outlook.com
     imap_password: str = ""      # App Password (NOT the account password)

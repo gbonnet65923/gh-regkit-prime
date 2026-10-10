@@ -23,6 +23,7 @@ from .litensi import LitensiClient, LitensiError
 from .mail_errors import MailboxCancelled, MailboxTimeoutError
 from .mailcx import MailCxClient, MailCxError
 from .mail_imap import ImapMailClient
+from .mail_temptf import TempTfClient
 from .profiles import (
     generate_password,
     generate_username,
@@ -792,6 +793,11 @@ def _open_signup(page, log, attempts: int = 3, stop=None, headless: bool = False
     form never renders. A manual solve window is given at the end in headed mode.
     """
     last_hint = ""
+    proxy_fails = 0
+    _PROXY_DEAD_MARKERS = (
+        "NS_ERROR_PROXY", "ERR_PROXY", "PROXY_CONNECTION", "ProxyError",
+        "proxy", "NS_ERROR_NET_TIMEOUT", "<unknown error>",
+    )
     for attempt in range(1, attempts + 1):
         _raise_if_cancelled(stop)
         home_ok = False
@@ -802,6 +808,13 @@ def _open_signup(page, log, attempts: int = 3, stop=None, headless: bool = False
         except Exception as exc:
             home_ok = False
             log(f"[!] goto homepage failed ({exc}); retry {attempt}/{attempts}")
+            exc_s = str(exc).lower()
+            if any(m.lower() in exc_s for m in _PROXY_DEAD_MARKERS):
+                proxy_fails += 1
+                if proxy_fails >= 2:
+                    # the exit proxy itself is dead — retrying on it only burns
+                    # minutes; escalate so the outer loop disables + rotates it
+                    raise SignupBlocked(f"proxy dead on navigation: {str(exc)[:120]}")
         # WARM-UP (ported from Git_clean fast_hunt_warm): dwell on the homepage
         # like a real visitor — DataDome/Picasso score instant navigations as
         # bot-like. Only when the page actually loaded; mouse ops on a dead
@@ -831,6 +844,11 @@ def _open_signup(page, log, attempts: int = 3, stop=None, headless: bool = False
                 page.goto(SIGNUP_URL, wait_until="domcontentloaded", timeout=60_000)
             except Exception as exc:
                 log(f"[!] direct /signup goto failed: {exc}")
+                exc_s = str(exc).lower()
+                if any(m.lower() in exc_s for m in _PROXY_DEAD_MARKERS):
+                    proxy_fails += 1
+                    if proxy_fails >= 2:
+                        raise SignupBlocked(f"proxy dead on navigation: {str(exc)[:120]}")
             if _wait_for_signup(page, log, stop, 25):
                 log("[*] email form ready on direct /signup load")
                 return
@@ -1529,7 +1547,17 @@ def _create_repository(page, username: str, base_name: str, log) -> str:
         log("[*] 'Create repository' clicked via DOM (overlay bypassed)")
 
     name = base_name or "hello"
-    page.goto("https://github.com/new", wait_until="domcontentloaded", timeout=60_000)
+    for _nav_try in range(2):
+        try:
+            page.goto("https://github.com/new", wait_until="domcontentloaded", timeout=60_000)
+            break
+        except Exception as _nav_exc:
+            # fresh account lands on /dashboard which interrupts the /new nav —
+            # settle and retry once
+            if _nav_try == 0 and "interrupted" in str(_nav_exc):
+                time.sleep(2.5)
+                continue
+            raise
     try:
         page.wait_for_selector("#repository-name-input", state="visible", timeout=30_000)
     except Exception:
@@ -1755,6 +1783,14 @@ def _complete_profile(page, username: str, cfg: Config, log) -> None:
         profile = _fetch_public_profile() if not all(custom.values()) else {}
         profile = {key: custom[key] or profile[key] for key in custom}
     page.goto(f"https://github.com/{username}", wait_until="domcontentloaded", timeout=60_000)
+    # profile page renders via react-partial lazily — scroll to wake the
+    # right-column widgets (Set status / Edit profile) before clicking
+    try:
+        page.evaluate("window.scrollBy(0, 300)")
+        time.sleep(1.0)
+        page.wait_for_load_state("networkidle", timeout=8_000)
+    except Exception:
+        pass
 
     if cfg.set_profile_status:
         status = cfg.profile_status.strip() or "On vacation"
@@ -1765,19 +1801,27 @@ def _complete_profile(page, username: str, cfg: Config, log) -> None:
             has_text="Set status"
         ).first
         launcher_opened = False
-        try:
-            launcher.click(timeout=8_000)
-            launcher_opened = True
-        except Exception:
-            launcher_opened = _visible_dom_click(
-                page,
-                "b => /status/i.test(b.getAttribute('aria-label') || '') || "
-                "(b.textContent || '').trim() === 'Set status'",
-            )
-            if not launcher_opened:
-                log("[i] profile status launcher not found; status skipped")
-            else:
-                log("[*] profile status launcher clicked via DOM")
+        for _st_try in range(3):
+            try:
+                launcher.click(timeout=6_000)
+                launcher_opened = True
+                break
+            except Exception:
+                launcher_opened = _visible_dom_click(
+                    page,
+                    "b => /status/i.test(b.getAttribute('aria-label') || '') || "
+                    "(b.textContent || '').trim() === 'Set status'",
+                )
+                if launcher_opened:
+                    log("[*] profile status launcher clicked via DOM")
+                    break
+                try:
+                    page.evaluate("window.scrollBy(0, 150)")
+                except Exception:
+                    pass
+                time.sleep(1.5)
+        if not launcher_opened:
+            log("[i] profile status launcher not found; status skipped")
         if launcher_opened:
             status_input = page.locator("#user-status-status-input").first
             try:
@@ -1819,18 +1863,35 @@ def _complete_profile(page, username: str, cfg: Config, log) -> None:
 
     if not profile:
         return
-    edit_button = page.locator("button[name='button']").filter(has_text="Edit profile").first
-    try:
-        edit_button.click(timeout=10_000)
-    except Exception as exc:
-        log(f"[i] Edit profile native click intercepted ({exc}); trying DOM click")
-        if not _visible_dom_click(
-            page,
-            "b => (b.textContent || '').trim() === 'Edit profile' || "
-            "b.classList.contains('js-profile-editable-edit-button')",
-        ):
-            raise SignupError("cannot open Edit profile (button not found for DOM click)")
-        log("[*] Edit profile clicked via DOM (overlay bypassed)")
+    edit_opened = False
+    for _ep_try in range(3):
+        edit_button = page.locator(
+            "button[name='button'], summary, [data-testid='edit-profile-button'], "
+            "button[data-testid='profile-edit-button']"
+        ).filter(has_text="Edit profile").first
+        try:
+            edit_button.click(timeout=8_000)
+            edit_opened = True
+            break
+        except Exception as exc:
+            log(f"[i] Edit profile native click intercepted ({exc}); trying DOM click")
+            if _visible_dom_click(
+                page,
+                "b => (b.textContent || '').trim() === 'Edit profile' || "
+                "b.classList.contains('js-profile-editable-edit-button') || "
+                "(b.getAttribute('data-testid') || '').includes('edit-profile')",
+            ):
+                edit_opened = True
+                log("[*] Edit profile clicked via DOM (overlay bypassed)")
+                break
+            # react-partial may still be hydrating — scroll and retry
+            try:
+                page.evaluate("window.scrollBy(0, 200)")
+            except Exception:
+                pass
+            time.sleep(2.0)
+    if not edit_opened:
+        raise SignupError("cannot open Edit profile (button not found for DOM click)")
 
     name_input = page.locator("#user_profile_name").first
     bio_input = page.locator("#user_profile_bio").first
@@ -2041,15 +2102,26 @@ def _enable_2fa(page, password: str, log, username: str = "", email: str = "") -
         pass  # dialog content is in the DOM even when closed — read anyway
 
     secret = ""
-    try:
-        secret = (
-            page.locator(
-                "div[data-target='two-factor-setup-verification.mashedSecret']"
-            ).first.inner_text(timeout=5000)
-            or ""
-        ).strip()
-    except Exception:
-        pass
+    for _sec_try in range(4):
+        try:
+            secret = (
+                page.locator(
+                    "div[data-target='two-factor-setup-verification.mashedSecret']"
+                ).first.inner_text(timeout=5000)
+                or ""
+            ).strip()
+        except Exception:
+            secret = ""
+        if secret and len(secret) >= 16:
+            break
+        # dialog fetch may not have resolved yet — re-open the setup-key dialog
+        try:
+            page.locator("#dialog-show-two-factor-setup-verification-mashed-secret").first.click(
+                timeout=5_000
+            )
+        except Exception:
+            pass
+        time.sleep(1.5)
     if not secret:
         # fallback: scan page HTML for a base32-looking secret (16-32 chars)
         import re
@@ -2061,7 +2133,9 @@ def _enable_2fa(page, password: str, log, username: str = "", email: str = "") -
             body = ""
         # GitHub embeds otpauth://totp/GitHub:USER?secret=BASE32&issuer=GitHub
         m = re.search(r"otpauth%3A%2F%2Ftotp[^\"']*secret%3D([A-Z2-7]{16,32})", body or "") \
-            or re.search(r"otpauth://totp[^\"']*secret=([A-Z2-7]{16,32})", body or "")
+            or re.search(r"otpauth://totp[^\"']*secret=([A-Z2-7]{16,32})", body or "") \
+            or re.search(r"setup[-_ ]?key[^A-Z2-7]{0,200}([A-Z2-7]{16,32})", body or "", re.I) \
+            or re.search(r"secret[\s\"']{1,6}[:=][\s\"']{1,6}([A-Z2-7]{16,32})", body or "")
         if m:
             secret = m.group(1)
         else:
@@ -2558,7 +2632,7 @@ def _run_signup(
             _reject_blocked(page)
 
             fresh_mail_needed = "email" not in pending
-            if not fresh_mail_needed and session_attempt > 1 and provider in ("mailcx", "gmail", "outlook"):
+            if not fresh_mail_needed and session_attempt > 1 and provider in ("mailcx", "gmail", "outlook", "temptf"):
                 # Session switch means the old username is likely burned; with
                 # free mail.cx grab a NEW mailbox so the derived base username
                 # changes too (prevents endless 'Username X is not available').
@@ -2682,6 +2756,12 @@ def register_one(
             host=cfg.imap_host,
             port=cfg.imap_port,
             alias_domain=cfg.imap_alias_domain,
+        )
+    elif provider == "temptf":
+        mail = TempTfClient(
+            providers=cfg.temptf_providers,
+            dot=cfg.temptf_dot,
+            plus=cfg.temptf_plus,
         )
     else:
         mail = MailCxClient(domain=cfg.mailcx_domain)
