@@ -87,6 +87,8 @@ console, or as a Docker service behind an nginx reverse proxy.
 - Protects the console with username + password auth (rate-limited,
   server-side sessions) for self-hosting.
 
+<img src="docs/dashboard_status.png" alt="Web console — Status page with live streaming log" width="880">
+
 <img src="docs/dashboard_config_gmail.png" alt="Web console — mail provider config with Gmail +alias" width="880">
 
 ## Requirements
