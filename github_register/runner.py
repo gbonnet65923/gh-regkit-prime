@@ -2436,21 +2436,45 @@ def _advance_step(page, next_selectors, log, stop, timeout: int = 25) -> None:
     """
     deadline = time.time() + timeout
     clicked = False
+    clicks = 0
+    captcha_solved = False
     while time.time() < deadline:
         _raise_if_cancelled(stop)
         _raise_if_rate_limited(page)
         if _visible(page, next_selectors):
             return
-        if not clicked:
+        # GitHub may silently gate the wizard with Arkose/FunCaptcha after a
+        # Continue click — detect it and solve with the voting solver instead
+        # of waiting out the 25s deadline for a step that will never come.
+        if not captcha_solved:
+            try:
+                if arkose_present(page):
+                    log("[*] Arkose FunCaptcha gating the wizard step — voting solver")
+                    from .captcha_solver import solve_arkose_voting
+                    res = solve_arkose_voting(page, shot_dir=str(ROOT / "screenshots_captcha"),
+                                              max_rounds=8, log=log)
+                    captcha_solved = True
+                    if res and res != "SKIP_VARIANT":
+                        log("[*] wizard captcha solved — waiting for next step")
+                        continue
+            except Exception as exc:
+                log(f"[i] wizard captcha handling failed: {exc}")
+        # re-click Continue every ~8s while the next step is missing — a single
+        # click may not register (React form re-render, transient validation).
+        if not clicked or time.time() % 8 < 1.2:
             btn = page.locator("form[action*='signup'] button[type='submit']").first
             try:
                 if btn.count() and btn.is_visible() and btn.is_enabled():
                     _try_click_datadome(page, log)
                     try:
-                        btn.click(timeout=8_000)
+                        btn.click(timeout=4_000)
                     except Exception:
                         btn.evaluate("el => el.click()")
-                    log("[*] step advanced: Continue clicked")
+                    clicks += 1
+                    if clicks == 1:
+                        log("[*] step advanced: Continue clicked")
+                    elif clicks % 3 == 0:
+                        log(f"[*] Continue re-clicked ({clicks}x) — next step still missing")
                     clicked = True
             except Exception:
                 pass
