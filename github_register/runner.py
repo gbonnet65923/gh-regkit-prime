@@ -510,9 +510,19 @@ def _disable_blocked_proxy(log) -> None:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        resp = urllib.request.urlopen(req, timeout=5)
-        data = json.loads(resp.read())
-        if data.get("ok"):
+        resp = None
+        data = None
+        for attempt in range(3):
+            try:
+                resp = urllib.request.urlopen(req, timeout=5)
+                data = json.loads(resp.read())
+                break
+            except Exception as exc:
+                if attempt == 2:
+                    raise
+                import time as _t
+                _t.sleep(1 + attempt)
+        if data and data.get("ok"):
             log(f"[!] permanently disabled proxy: {data.get('disabled')} ({data.get('remaining')} remaining)")
         else:
             log(f"[i] proxy disable: {data}")
