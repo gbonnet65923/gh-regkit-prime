@@ -4,18 +4,17 @@ Full-stack GitHub account autoreg farm: **Camoufox anti-detect browser + free
 mail.cx mailboxes + FREE multi-LLM Arkose FunCaptcha solver + proxy pool
 rotator + web dashboard**. Runs at $0 per account.
 
-> Based on [mhiqrambg/github-regkit-mibp](https://github.com/mhiqrambg/github-regkit-mibp) (MIT)
-> and the field-verified voting captcha solver from GoubaLab/reg-factory-github.
+> Telegram-канал: [@alstack](https://t.me/alstack) — апдейты, новые тулзы, разборы.
 
-## What Prime adds over upstream
+## Features
 
-| Feature | Upstream regkit | **Prime** |
-|---|---|---|
+| Feature | **Prime** |
+|---|---|
 | Signup flow | single-page form | **multi-step wizard** (email → Continue → password → Continue → username → Create account) |
 | Arkose FunCaptcha | none | **multi-model LLM voting solver** — sequence / rotate / character / wires |
 | Captcha cost | — | **$0** — qwen3-vl-flash + qwen-vl-max + qwen-vl-plus vote in parallel (~1-3 s each) via any OpenAI-compatible vision gateway |
 | Dashboard | config/jobs/logs/accounts/TOTP | same + captcha toggles (`solve_captcha`, `captcha_max_rounds`) + `create_pat` |
-| Warm-up | none | **homepage dwell + JS-scroll warm-up** (ported from Git_clean) — fixes `suspended` accounts |
+| Warm-up | none | **homepage dwell + JS-scroll warm-up** — fixes `suspended` accounts |
 | PAT farming | none | **stage 6: classic PAT** (repo+workflow scopes) appended to the account row |
 | Knowledge base | — | [`docs/AUTOREG-KNOWLEDGE.md`](docs/AUTOREG-KNOWLEDGE.md) — every field-verified fact about GitHub autoreg |
 
@@ -54,7 +53,7 @@ Works with OpenRouter, Aurora, one-api/new-api, LiteLLM — anything accepting
 
 ---
 
-# GitHub Register (upstream docs)
+# GitHub Register
 
 A GitHub account registration toolkit that uses Camoufox for browser automation
 and mail.cx (free, default), [Litensi](https://litensi.id) (paid), [temp.tf](https://temp.tf)

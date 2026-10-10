@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """Sync Arkose FunCaptcha solver — multi-LLM voting, $0.
 
-Adapted from GoubaLab/reg-factory-github `common/agent_captcha.py`
-(10/10 field-verified voting solver) to the SYNC Playwright/Camoufox API
+Field-verified multi-LLM voting solver for the SYNC Playwright/Camoufox API
 used by this project's runner.
 
 Flow:

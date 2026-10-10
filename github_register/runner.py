@@ -757,7 +757,7 @@ def _wait_for_signup(page, log, stop, seconds: int) -> bool:
 
 def _warmup_dwell(page, log, stop=None, min_s: float = 4.0, max_s: float = 7.0) -> None:
     """Human-like warm-up on the current page: random dwell, mouse moves,
-    scroll a bit. Ported from Git_clean fast_hunt_warm (field-verified:
+    scroll a bit. Field-verified warm-up pattern (
     warm sessions reach the CLEAN signup form far more often than cold ones)."""
     import random as _r
     log(f"[*] warm-up dwell ({min_s:.0f}-{max_s:.0f}s)")
@@ -816,7 +816,7 @@ def _open_signup(page, log, attempts: int = 3, stop=None, headless: bool = False
                     # the exit proxy itself is dead — retrying on it only burns
                     # minutes; escalate so the outer loop disables + rotates it
                     raise SignupBlocked(f"proxy dead on navigation: {str(exc)[:120]}")
-        # WARM-UP (ported from Git_clean fast_hunt_warm): dwell on the homepage
+        # WARM-UP: dwell on the homepage
         # like a real visitor — DataDome/Picasso score instant navigations as
         # bot-like. Only when the page actually loaded; mouse ops on a dead
         # page hang the protocol forever.
@@ -832,7 +832,7 @@ def _open_signup(page, log, attempts: int = 3, stop=None, headless: bool = False
                 link.click(timeout=10_000)
         except Exception as exc:
             log(f"[i] 'Sign up' link skipped: {exc}")
-        # dwell on the signup page before touching the form (Git_clean: 9s)
+        # dwell on the signup page before touching the form (~9s)
         _sleep_with_cancel(random.uniform(6.0, 10.0), stop)
         if _wait_for_signup(page, log, stop, 30):
             log("[*] github.com/signup email form is ready")
@@ -1673,7 +1673,7 @@ def _visible_dom_click(page, matcher_js: str) -> bool:
 
 
 def _create_pat(page, password: str, log, username: str = "", email: str = "") -> str:
-    """Stage 6 (ported from Git_clean enrich_account.create_pat): create a
+    """Stage 6: create a
     classic PAT with repo+workflow scopes. Returns 'ghp_...' or '' on failure.
 
     Flow: /settings/tokens/new -> sudo password if asked -> note -> scopes ->

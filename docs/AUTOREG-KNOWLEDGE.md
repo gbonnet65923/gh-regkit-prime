@@ -1,7 +1,7 @@
 # GitHub Autoreg — собранная база знаний
 
-Все проверенные факты из наших прогонов + проектов Git_clean, reg-factory-github,
-github-regkit-mibp, gh-regkit-prime. Дата актуальности: 2026-10-09.
+Все проверенные факты из наших прогонов. Дата актуальности: 2026-10-09.
+Канал: [@alstack](https://t.me/alstack).
 
 ## 1. Флоу signup (живой, октябрь 2026)
 
@@ -28,7 +28,7 @@ github-regkit-mibp, gh-regkit-prime. Дата актуальности: 2026-10-
 
 ## 3. Captcha: multi-LLM voting ($0)
 
-- Порт из GoubaLab/reg-factory-github `common/agent_captcha.py`.
+- Multi-LLM voting solver (собственная реализация).
 - Кандидаты склеиваются в пронумерованную сетку, PIL-энханс, уходят
   параллельно в vision-модели; большинство побеждает; `ANSWER=<n>`.
 - Бесплатные voter'ы через локальный OpenAI-совместимый гейтвей
@@ -63,10 +63,10 @@ github-regkit-mibp, gh-regkit-prime. Дата актуальности: 2026-10-
 - Stage 4: create first repository (делает акк "живым").
 - Stage 5: TOTP 2FA — Settings -> Password and authentication ->
   Authenticator app -> "setup key" -> secret -> pyotp -> recovery codes.
-- Stage 6 (порт из Git_clean enrich_account.create_pat): classic PAT —
+- Stage 6: classic PAT —
   /settings/tokens/new -> sudo password -> note -> scopes repo+workflow ->
   Generate token -> токен показывается ОДИН раз, читать regex ghp_[A-Za-z0-9]{36}.
-- Profile completion: avatar/status/bio — Git_clean persona_gen (персоны).
+- Profile completion: avatar/status/bio — генератор персон.
 
 ## 7. Формат выхлопа
 

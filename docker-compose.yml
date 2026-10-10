@@ -3,7 +3,7 @@ name: github-regkit
 services:
   app:
     build: .
-    image: github-regkit-mibp:latest
+    image: gh-regkit-prime:latest
     container_name: github-regkit
     restart: unless-stopped
     # .env is read first, then environment below overrides (HOST must be 0.0.0.0 in container).
