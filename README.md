@@ -465,3 +465,12 @@ Its output can contain email addresses, session URLs, and selectors. Treat
 ## License
 
 Released under the [MIT License](LICENSE).
+
+## Proof (2026-10-10)
+
+- **50 accounts** in the daily bank, **5 full gmail cycles** (2FA TOTP + 16 recovery codes + PAT `ghp_...` + filled profile)
+- Provider: Gmail +alias via IMAP (`baradok609+<rand>@gmail.com`) — one mailbox, unlimited addresses
+- Launch code read live from IMAP: `verification code: 58423445` → typed into 8 boxes → `logged_in cookie confirmed`
+- Dead-proxy fast-rotate: timeout/`<unknown error>` → proxy disabled after 2 navigations (was burning 5 min/account)
+- Repo stage: React native-setter + direct-visit probe (fixed `creation not confirmed`)
+- Profile stage: lazy react-partial render → scroll + 3-try retry (fixed `Edit profile button not found`)

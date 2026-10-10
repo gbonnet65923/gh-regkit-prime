@@ -797,6 +797,7 @@ def _open_signup(page, log, attempts: int = 3, stop=None, headless: bool = False
     _PROXY_DEAD_MARKERS = (
         "NS_ERROR_PROXY", "ERR_PROXY", "PROXY_CONNECTION", "ProxyError",
         "proxy", "NS_ERROR_NET_TIMEOUT", "<unknown error>",
+        "Page.goto: Timeout", "navigation timeout",
     )
     for attempt in range(1, attempts + 1):
         _raise_if_cancelled(stop)
@@ -1564,6 +1565,25 @@ def _create_repository(page, username: str, base_name: str, log) -> str:
         raise SignupError(f"repo form not found; url={page.url} body={_page_text(page)[:200]!r}")
     inp = page.locator("#repository-name-input").first
     inp.fill(name)
+    try:
+        # React ignores synthetic fill() in some builds — push the value
+        # through the native setter so React state actually updates and the
+        # Create button enables
+        page.evaluate(
+            """(name) => {
+                const inp = document.querySelector('#repository-name-input')
+                    || document.querySelector("input[name='repository[name]']");
+                if (!inp) return;
+                const setter = Object.getOwnPropertyDescriptor(
+                    window.HTMLInputElement.prototype, 'value').set;
+                setter.call(inp, name);
+                inp.dispatchEvent(new Event('input', {bubbles: true}));
+                inp.dispatchEvent(new Event('change', {bubbles: true}));
+            }""",
+            name,
+        )
+    except Exception:
+        pass
     time.sleep(1.5)  # let GitHub validate + enable the submit button
     try:
         _submit()
@@ -1618,6 +1638,18 @@ def _create_repository(page, username: str, base_name: str, log) -> str:
             time.sleep(1.5)
             _submit()
         time.sleep(1)
+    # last chance: /new may create via fetch + client-side redirect that got
+    # lost — check the repo URL directly
+    try:
+        probe = f"https://github.com/{username}/{name}"
+        page.goto(probe, wait_until="domcontentloaded", timeout=30_000)
+        time.sleep(1.5)
+        cur = (page.url or "").rstrip("/")
+        if cur.endswith(f"/{username}/{name}") and "This is not the web page" not in _page_text(page)[:400]:
+            log(f"[*] repository confirmed by direct visit: {cur}")
+            return name
+    except Exception as exc:
+        log(f"[i] repo direct-visit probe failed: {exc}")
     raise SignupError(f"repository creation not confirmed; url={page.url}")
 
 
