@@ -169,13 +169,18 @@ def load_proxy_pool(name: str) -> list[str]:
     return out
 
 
+_last_picked_proxy_url: Optional[str] = None
+
+
 def _pick_proxy_url(cfg: Config, log=None) -> str:
     """Effective proxy URL: random pick from proxy_file pool, else the single URL."""
+    global _last_picked_proxy_url
     name = (getattr(cfg, "proxy_file", "") or "").strip()
     if name:
         pool = load_proxy_pool(name)
         if pool:
-            return random.choice(pool)
+            _last_picked_proxy_url = random.choice(pool)
+            return _last_picked_proxy_url
         if log:
             log(f"[!] proxy file {name!r} missing/empty — falling back to single proxy URL")
     return (cfg.proxy or "").strip()
@@ -488,9 +493,20 @@ def _disable_blocked_proxy(log) -> None:
     """
     try:
         import urllib.request
+        # send the SPECIFIC proxy this job used — the runner picks randomly
+        # from proxies.txt, so the rotator's own last_used is meaningless here.
+        payload: dict = {}
+        if _last_picked_proxy_url:
+            try:
+                _p = urlsplit(_last_picked_proxy_url.strip())
+                if _p.hostname:
+                    payload = {"host": _p.hostname,
+                               "port": int(_p.port or (1080 if (_p.scheme or "").startswith("socks") else 80))}
+            except Exception:
+                payload = {}
         req = urllib.request.Request(
             "http://127.0.0.1:8100/disable",
-            data=b"{}",
+            data=json.dumps(payload).encode(),
             headers={"Content-Type": "application/json"},
             method="POST",
         )
@@ -863,13 +879,18 @@ def _open_signup(page, log, attempts: int = 3, stop=None, headless: bool = False
                 f"{last_hint} in headless mode — solve requires a visible browser "
                 f"window; use a residential proxy or set headless=false"
             )
-        # final long wait: challenge may need a manual click in the visible window
-        log(f"[!] {last_hint} — waiting up to 120s; solve the check in the browser window "
+        # final wait: challenge may need a manual click in the visible window.
+        # Poke-loop fast-fail: on a hard-banned IP the 120s wait never pays off —
+        # 30s is enough for a solvable challenge; after that treat the IP as
+        # blocked so the caller disables the proxy and rotates instead of
+        # burning 2 minutes per account.
+        log(f"[!] {last_hint} — waiting up to 30s; solve the check in the browser window "
             f"if visible, or configure a residential proxy")
         _try_click_datadome(page, log)
-        if _wait_for_signup(page, log, stop, 120):
+        if _wait_for_signup(page, log, stop, 30):
             log("[*] challenge passed, email form is ready")
             return
+        raise SignupBlocked(f"{last_hint} persisted after 30s poke-loop — IP is DataDome-banned")
     raise SignupError(f"email form did not appear ({last_hint or 'no challenge marker'}); "
                       f"IP is blocked by DataDome — use a residential proxy in config")
 
@@ -2868,6 +2889,18 @@ def register_one(
             succeeded = True
             return (f"{pending['email']}----{password}----{pending.get('username','')}"
                     f"------0----")
+        # proxy-dead failures (402 / tunnel failed / IP probe) happen at
+        # browser LAUNCH — outside the SignupBlocked retry loop — so the dead
+        # proxy would stay in the pool forever. Disable it here via the
+        # rotator so the next account gets a fresh upstream.
+        _exc_s = str(exc).lower()
+        if any(m in _exc_s for m in (
+            "402 payment required", "tunnel connection failed", "proxyerror",
+            "failed to get ip address", "ns_error_proxy", "err_proxy",
+            "proxy connection failed", "proxy_connect", "unable to connect to proxy",
+        )):
+            log(f"[!] proxy dead at launch — disabling via rotator: {str(exc)[:100]}")
+            _disable_blocked_proxy(log)
         log(f"[-] account failed: {exc}")
         return None
     finally:
