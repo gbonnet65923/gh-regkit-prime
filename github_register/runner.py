@@ -2479,6 +2479,19 @@ def _advance_step(page, next_selectors, log, stop, timeout: int = 25) -> None:
             except Exception:
                 pass
         _sleep_with_cancel(1, stop)
+    # debug artifacts: capture what is actually on the page when the wizard stalls
+    try:
+        _dbg = ROOT / "debug_stall"
+        _dbg.mkdir(exist_ok=True)
+        _ts = time.strftime("%H%M%S")
+        page.screenshot(path=str(_dbg / f"stall_{_ts}.png"), full_page=False)
+        _frames = [f.url for f in page.frames]
+        (_dbg / f"stall_{_ts}.txt").write_text(
+            "url=" + str(page.url) + chr(10) + "frames=" + repr(_frames) + chr(10) + chr(10) + _page_text(page)[:4000],
+            encoding="utf-8")
+        log(f"[i] stall debug saved: debug_stall/stall_{_ts}.png")
+    except Exception:
+        pass
     raise SignupError(
         f"next step ({next_selectors}) did not appear after Continue; "
         f"url={page.url} body={_page_text(page)[:200]!r}"
