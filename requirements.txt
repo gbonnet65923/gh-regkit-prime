@@ -1,0 +1,6 @@
+camoufox[geoip]>=0.5.5
+playwright>=1.60
+requests>=2.32
+fastapi>=0.141
+uvicorn[standard]>=0.52
+pyotp>=2.9

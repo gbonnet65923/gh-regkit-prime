@@ -1,0 +1,66 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# === Virtual env ===
+.venv/
+venv/
+env/
+
+# === Node / frontend ===
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+npm-debug.log*
+
+# === Config (SECRETS — never commit) ===
+config.json
+.env
+.env.*
+!.env.example
+
+# === Account output (SENSITIVE — never commit) ===
+github_accounts_*.txt
+github_recovery_codes.txt
+github-recovery-codes*.txt
+mail_credentials.txt
+
+# === Browser profile (trust DataDome, data sensitif) ===
+.browser-profile/
+.datadome-trust.json
+
+# === Playwright / step recordings (may contain personal values) ===
+.playwright-mcp
+playwright-report/
+test-results/
+blob-report/
+screenshots/
+artifacts/
+recorded_steps.json
+recorded_steps.py
+*.trace.zip
+*.har
+
+# === Credentials / sertifikat ===
+*.pem
+*.key
+*.p12
+*.pfx
+accounts/
+regkit_codebuddy.*
+
+# === Log & temp ===
+*.log
+*.tmp
+.DS_Store
+proxies.txt*

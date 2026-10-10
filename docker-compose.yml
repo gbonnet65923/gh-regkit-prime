@@ -1,0 +1,42 @@
+name: github-regkit
+
+services:
+  app:
+    build: .
+    image: github-regkit-mibp:latest
+    container_name: github-regkit
+    restart: unless-stopped
+    # .env is read first, then environment below overrides (HOST must be 0.0.0.0 in container).
+    env_file:
+      - .env
+    environment:
+      GITHUB_REGISTER_HOST: 0.0.0.0
+      GITHUB_REGISTER_PORT: 8093
+      # Nginx fills X-Forwarded-For; required so rate-limit sees the real IP,
+      # not the nginx container IP. Only enable behind a trusted proxy.
+      GITHUB_REGISTER_TRUST_PROXY: 1
+    # Internal only — public access ONLY via nginx on the same network.
+    expose:
+      - "8093"
+    volumes:
+      # Must exist on the host BEFORE up (otherwise docker creates directories):
+      #   cp config.example.json config.json && touch proxies.txt .datadome-trust.json github_recovery_codes.txt
+      - ./config.json:/app/config.json
+      - ./accounts:/app/accounts
+      - ./.browser-profile:/app/.browser-profile
+      - ./proxies.txt:/app/proxies.txt
+      # DataDome trust cookie + recovery code backup — losing them = 403s from scratch
+      - ./.datadome-trust.json:/app/.datadome-trust.json
+      - ./github_recovery_codes.txt:/app/github_recovery_codes.txt
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8093/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - nginx-network
+
+networks:
+  nginx-network:
+    external: true
