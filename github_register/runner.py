@@ -498,7 +498,10 @@ def _disable_blocked_proxy(log) -> None:
         payload: dict = {}
         if _last_picked_proxy_url:
             try:
-                _p = urlsplit(_last_picked_proxy_url.strip())
+                _u = _last_picked_proxy_url.strip()
+                if "://" not in _u:
+                    _u = "http://" + _u
+                _p = urlsplit(_u)
                 if _p.hostname:
                     payload = {"host": _p.hostname,
                                "port": int(_p.port or (1080 if (_p.scheme or "").startswith("socks") else 80))}
